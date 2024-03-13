@@ -10,6 +10,7 @@ class Config:
     
     def set_config(self, config):
         self.config = config
+        self.config["senha"] = "" #impede que a senha seja gravada no arquivo config.json
         with open("config.json", 'w', encoding="utf-8") as file:
             json.dump(config, file, indent=4, ensure_ascii=False)
     
