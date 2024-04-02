@@ -11,11 +11,17 @@ class Logger:
             os.makedirs(self.caminho)
 
     def salvar_log(self, mensagem):
+        mensagem = str(mensagem)
+        traco = "------------------------------------------------"
         self.verificar_criar_caminho()
         data_atual = datetime.now()
         nome_arquivo = f"log_{data_atual.strftime('%Y%b%d')}.txt"
         caminho_arquivo = os.path.join(self.caminho, nome_arquivo)
         with open(caminho_arquivo, 'a') as arquivo:
-            arquivo.write(f"{data_atual} - {mensagem}\n")
+            if mensagem == "--" : 
+                arquivo.write(f"{traco}\n")
+            else:
+                arquivo.write(f"{data_atual} - {mensagem}\n")
+            
 
 

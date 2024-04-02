@@ -72,6 +72,8 @@ class UI(QMainWindow) :  # inserir QMainWindow no parâmetro
             
                 
     def iniciar_coate(self):
+        self.log.salvar_log("--")      
+        
         self.flag_thread = True      
         
         self.config["ultimo_acesso_user"] = self.login_input.text()

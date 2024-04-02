@@ -116,8 +116,7 @@ class MyApp:
             if self.flag_terminar_manualmente :
                 self.texto_eventos = "Ocorreu um erro inesperado e o processo não pode ser concluído.\nComo o marcador CDCONVINC já foi excluído\ntermine o processo manualmente.\n\nSe precisar clique no processo abaixo para copiá-lo\npara a área de transferência."
                         
-            self.sair_sei()      
-            
+            self.sair_sei()           
             
         elif txt[0:len(erro5)] == erro5:
             self.texto_eventos = "Siapenet não está respondendo!\nReinicie o programa."
@@ -148,23 +147,22 @@ class MyApp:
         except Exception as erro :
             print("")    
     
-    def iniciar(self):       
+    def iniciar(self):
         
         self.log.salvar_log("Iniciando.")
         
-        self.texto_eventos = "Iniciando."      
+        self.texto_eventos = "Iniciando."
         
         self.lista_marcadores_substitutos = list( self.config["lista_marcadores_substitutos"] )
        
-        self.vinculos_decipex = list( self.config["vinculos_decipex"] )
-        
+        self.vinculos_decipex = list( self.config["vinculos_decipex"] )        
 
         # Obtenha a data e hora atuais
-        self.data_atual = datetime.now()
+        self.data_atual = datetime.now()        
 
         # Formata a data no formato "dd/mm/yyyy"
         self.data_atual = self.data_atual.strftime("%d/%m/%Y")
-
+        
         #se o siape (ela preta) estiver aberto fecha
         try :
             self.app = Application().connect(title_re="^Painel de controle.*")
@@ -192,9 +190,10 @@ class MyApp:
         sleep(3)
         
         siape = SeleniumSetup()            
-        IniciaModSiape(siape, self.config["url_siapenet"]).executar_siape()        
+        IniciaModSiape(siape, self.config["url_siapenet"]).executar_siape()
+        self.log.salvar_log("Iniciando siape net")        
         
-        #o bloco abaixo fica aguardando a tela preta aparecer por 100 segundos
+        #o bloco abaixo fica aguardando a tela preta aparecer por 30 segundos
         contador_telapreta = 0
         flag_telapreta = True
 
@@ -222,37 +221,43 @@ class MyApp:
         
         self.texto_eventos = "Abrindo página SEI."
         
-        #Entra no SEI        
-        self.wauto = WebAutomation(self.browser)    
+        
+        #Entra no SEI
+        self.log.salvar_log("Abrindo página SEI")                
+        self.wauto = WebAutomation(self.browser)
+        self.log.salvar_log("Digitando usuário, senha e órgão")            
         self.wauto.entrar_no_sei(self.config["url_sei"],self.config["ultimo_acesso_user"], self.config["senha"], self.config["ultimo_orgao"])
         self.browser.implicitly_wait(3)
     
         # fecha tela de aviso
+        self.log.salvar_log("Fecha tela de avisos")
         fecha_tela_aviso = '/html/body/div[7]/div[2]/div[1]/div[3]/img'
         self.wauto.tela_aviso(fecha_tela_aviso)
 
         # Seleciona unidade
+        self.log.salvar_log("Seleciona Unidade SEI /'Caixa/'")
         SelecionaUnidade(self.browser, self.config["unidade_sei"])
 
-        self.texto_eventos = "Seleciona Ver por marcadores."
-        
+        self.log.salvar_log("Clica em ver por marcadores")        
         # Clica em "Ver por por Marcadores" na janela de Controle de Processos
         self.browser.find_element('xpath', '//*[@id="divFiltro"]/div[3]/a').click()  # Clica em ver por marcadores        
         
         #procura o marcador CDCONVINC e clica
+        self.log.salvar_log("Verrifica se há e clica no marcador "+self.config["marcador"])
         flag_marcador = self.clica_marcador()
         
         if flag_marcador :    
-
+            self.log.salvar_log("Marcador "+self.config["marcador"]+": True")
+            
             # pega o total de registros
             self.sleepal(1,2)
             total_registros = self.browser.find_element('xpath', '//*[@id="tblProcessosRecebidos"]/caption').text
-
+            self.log.salvar_log("Total de processos com marcadores "+self.config["marcador"]+": "+total_registros)
+            
             # REGEX para extrair só números do total de registros
             total_registros = re.findall(r'\d+', total_registros)
             total_registros = int(total_registros[0])
-            print("Total de registros: " + str(total_registros) )
-
+            
             # Pega qt de linhas geradas no marcador CDCONVINC e faz o laço pra fazer as consultas CDCONVINC de todas as linhas
             self.sleepal(1,2)
             
@@ -266,11 +271,14 @@ class MyApp:
                 try:            
 
                     #Clica na caixa de seleção
+                    self.log.salvar_log("Clica na caixa de seleção")       
                     self.wauto.clicar_caixaselecao_e_marcador()            
 
                     self.cpf = self.browser.find_element('xpath', '//*[@id="tdAndamentoMarcador78958"]').text  # cpf que está no texto do marcador CDCONVINC
+                    self.log.salvar_log("copia CPF "+self.cpf)
                     
                     self.numero_processo = self.browser.find_element('xpath', '//*[@id="divInfraBarraLocalizacao"]').text[-20:]
+                    self.log.salvar_log("copia Processo "+self.numero_processo)
                     
                     self.texto_eventos = "CPF: "+str(self.cpf)                    
                     sleep(0.4)
@@ -279,6 +287,8 @@ class MyApp:
                     sleep(0.4)
                    
                     # Entra no Terminal 3270 - Siape Hod (tela preta)
+                    self.log.salvar_log("Enra no Terminal 3270 e digita o CPF")      
+        
                     self.app = Application().connect(title_re="^Terminal 3270.*")
                     self.dlg = self.app.window(title_re="^Terminal 3270.*")
                     self.acesso = controle_terminal3270.Janela3270()
@@ -297,6 +307,7 @@ class MyApp:
                     while flag_acesso_negado :
                         try:
                             cpf_mensagem = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 24, 9, 24, 44).strip()
+                            texto_dif_cpf = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 24, 2, 24, 16).strip()
                             flag_acesso_negado = False
                             sleep(2)               
                         except Exception as e :
@@ -308,14 +319,18 @@ class MyApp:
                     com decipex; se cpf tem vinculo com decipex
                     '''
                     #################################################################################################
-
-
-                    if cpf_mensagem == "DIGITO VERIFICADOR INVALIDO":
+                    if texto_dif_cpf == "INFORME APENAS":
+                        self.log.salvar_log("CPF inválido")
                         marcador = self.lista_marcadores_substitutos[3]
                         self.cpf_invalido(marcador)
-                    
+
+                    elif cpf_mensagem == "DIGITO VERIFICADOR INVALIDO":
+                        self.log.salvar_log("CPF inválido")
+                        marcador = self.lista_marcadores_substitutos[3]
+                        self.cpf_invalido(marcador)
 
                     elif cpf_mensagem == "NAO EXISTEM DADOS PARA ESTA CONSULTA":
+                        self.log.salvar_log("Não existem dados para a consulta do CPF")
                         marcador = self.lista_marcadores_substitutos[4]
                         self.sem_vinculo_algum(marcador)
 
@@ -332,11 +347,11 @@ class MyApp:
                         tem_vinculo_decipex = self.verifica_vinculo(self.vinculos_decipex.copy())
                         
                         if tem_vinculo_decipex:
-
+                            self.log.salvar_log("CPF com vínculo Decipex")
                             self.com_vinculo_decipex()
 
                         else:
-
+                            self.log.salvar_log("CPF sem vínculo Decipex")
                             self.sem_vinculo_decipex()
 
 
@@ -820,12 +835,12 @@ class MyApp:
             print(self.pagina_linha_orgao)
 
     def cpf_invalido(self, marcador):
-        pdf.coletar_tela(self)
-        self.salva_arquivo()
+        #pdf.coletar_tela(self)
+        #self.salva_arquivo()
         self.exclui_marcador(str(self.config["marcador"]))
-        info_add = "CPF informado no marcador CDCONVINC ("+self.cpf+") é inválido. Verificar documento anexo."
+        info_add = "CPF informado no marcador CDCONVINC ("+self.cpf+") é inválido. Nenhum documento foi adicionado ao processo."
         self.add_marcador(marcador, info_add)        
-        self.add_documento()
+        #self.add_documento()
         
     def sem_vinculo_algum(self, marcador):
         pdf.coletar_tela(self)
@@ -840,6 +855,7 @@ class MyApp:
             self.app = Application().connect(title_re="^Painel de controle.*")
             self.dlg = self.app.window(title_re="^Painel de controle.*")
             self.dlg.type_keys('%{F4}')
+            self.log.salvar_log("Fechou Terminal 3270")
             sleep(1)
             kb.press("Enter")
         except Exception as e:
@@ -856,6 +872,7 @@ class MyApp:
                 #self.dlg.type_keys('%{F4}')
             sleep(1)
             self.dlg.type_keys('%{F4}')
+            self.log.salvar_log('Fechou página do SEI')
             
         except Exception as e:
             print(e)
