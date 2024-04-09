@@ -367,7 +367,7 @@ class WebAutomation:
         - Nenhum.
         """
         try:
-            self.browser.implicitly_wait(30)
+            self.browser.implicitly_wait(10)
             if self.browser.find_element(By.XPATH, path):  
                 self.browser.find_element(By.XPATH, path).click()
         except (NoSuchElementException, TimeoutException) as e:

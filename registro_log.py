@@ -15,13 +15,14 @@ class Logger:
         traco = "------------------------------------------------"
         self.verificar_criar_caminho()
         data_atual = datetime.now()
+        hora_formatada = data_atual.strftime("%H:%M:%S")
         nome_arquivo = f"log_{data_atual.strftime('%Y%b%d')}.txt"
         caminho_arquivo = os.path.join(self.caminho, nome_arquivo)
         with open(caminho_arquivo, 'a') as arquivo:
             if mensagem == "--" : 
                 arquivo.write(f"{traco}\n")
             else:
-                arquivo.write(f"{data_atual} - {mensagem}\n")
+                arquivo.write(f"{hora_formatada} - {mensagem}\n")
             
 
 

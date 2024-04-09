@@ -67,12 +67,12 @@ class UI(QMainWindow) :  # inserir QMainWindow no parâmetro
         
         self.lista_exception = []      
         
-        self.initUI()                  
-    
+        self.initUI()   
             
                 
     def iniciar_coate(self):
-        self.log.salvar_log("--")      
+        self.log.salvar_log("--")
+        self.log.salvar_log("--")
         
         self.flag_thread = True      
         
@@ -935,18 +935,17 @@ e certidão de óbito.
         
 
     def info_evento(self, msg):
-        '''
-        if str(msg) == "Terminado." or str(msg) == "A página foi fechada!\nReinicie o programa." or str(msg) == "Siapenet não está respondendo!\nReinicie o programa. " or str(msg) == "Não foi possível terminar a ação!\nConclua manualmente." :
-            self.flag_thread = False
-            
-            print("entrou")
-        
-            self.button_iniciar.setText("Iniciar")
-            self.button_iniciar.setEnabled(True)
+        """
+        Adiciona uma mensagem à lista de exceções, exibe as exceções em ordem inversa em um widget QListWidget.
 
-            self.button_iniciar2.setText("Iniciar")
-            self.button_iniciar2.setEnabled(True)           
-        '''
+        Parâmetros:
+            msg (str): A mensagem a ser adicionada à lista de exceções e exibida no widget.
+
+        Exemplo de Uso:
+            Para utilizar esta função, chame-a com a mensagem que deseja adicionar à lista de exceções.
+            Por exemplo:
+            info_evento("Erro ao processar os dados.")
+        """
         self.lista_exception.append("\n"+msg)
         
         self.lista_invertida = self.lista_exception[::-1]

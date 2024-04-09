@@ -149,9 +149,9 @@ class MyApp:
     
     def iniciar(self):
         
-        self.log.salvar_log("Iniciando.")
+        self.log.salvar_log("Início")
         
-        self.texto_eventos = "Iniciando."
+        self.texto_eventos = "Iniciando." 
         
         self.lista_marcadores_substitutos = list( self.config["lista_marcadores_substitutos"] )
        
@@ -191,7 +191,7 @@ class MyApp:
         
         siape = SeleniumSetup()            
         IniciaModSiape(siape, self.config["url_siapenet"]).executar_siape()
-        self.log.salvar_log("Iniciando siape net")        
+        self.log.salvar_log("Abrindo siape net")        
         
         #o bloco abaixo fica aguardando a tela preta aparecer por 30 segundos
         contador_telapreta = 0
@@ -225,25 +225,23 @@ class MyApp:
         #Entra no SEI
         self.log.salvar_log("Abrindo página SEI")                
         self.wauto = WebAutomation(self.browser)
-        self.log.salvar_log("Digitando usuário, senha e órgão")            
+        
+        self.log.salvar_log("Digita usuário, senha e órgão")            
         self.wauto.entrar_no_sei(self.config["url_sei"],self.config["ultimo_acesso_user"], self.config["senha"], self.config["ultimo_orgao"])
         self.browser.implicitly_wait(3)
     
         # fecha tela de aviso
-        self.log.salvar_log("Fecha tela de avisos")
         fecha_tela_aviso = '/html/body/div[7]/div[2]/div[1]/div[3]/img'
         self.wauto.tela_aviso(fecha_tela_aviso)
 
         # Seleciona unidade
-        self.log.salvar_log("Seleciona Unidade SEI /'Caixa/'")
+        self.log.salvar_log("Seleciona Unidade SEI 'Caixa': "+self.config["unidade_sei"])
         SelecionaUnidade(self.browser, self.config["unidade_sei"])
 
-        self.log.salvar_log("Clica em ver por marcadores")        
         # Clica em "Ver por por Marcadores" na janela de Controle de Processos
         self.browser.find_element('xpath', '//*[@id="divFiltro"]/div[3]/a').click()  # Clica em ver por marcadores        
         
         #procura o marcador CDCONVINC e clica
-        self.log.salvar_log("Verrifica se há e clica no marcador "+self.config["marcador"])
         flag_marcador = self.clica_marcador()
         
         if flag_marcador :    
@@ -252,7 +250,6 @@ class MyApp:
             # pega o total de registros
             self.sleepal(1,2)
             total_registros = self.browser.find_element('xpath', '//*[@id="tblProcessosRecebidos"]/caption').text
-            self.log.salvar_log("Total de processos com marcadores "+self.config["marcador"]+": "+total_registros)
             
             # REGEX para extrair só números do total de registros
             total_registros = re.findall(r'\d+', total_registros)
@@ -271,36 +268,30 @@ class MyApp:
                 try:            
 
                     #Clica na caixa de seleção
-                    self.log.salvar_log("Clica na caixa de seleção")       
+                    self.log.salvar_log("--")
                     self.wauto.clicar_caixaselecao_e_marcador()            
 
                     self.cpf = self.browser.find_element('xpath', '//*[@id="tdAndamentoMarcador78958"]').text  # cpf que está no texto do marcador CDCONVINC
-                    self.log.salvar_log("copia CPF "+self.cpf)
+                    self.log.salvar_log("CPF "+self.cpf)
                     
                     self.numero_processo = self.browser.find_element('xpath', '//*[@id="divInfraBarraLocalizacao"]').text[-20:]
-                    self.log.salvar_log("copia Processo "+self.numero_processo)
+                    self.log.salvar_log("Processo "+self.numero_processo)
                     
                     self.texto_eventos = "CPF: "+str(self.cpf)                    
                     sleep(0.4)
                     
                     self.texto_eventos = "Processo nº "+str(self.numero_processo)                    
                     sleep(0.4)
+                    
+                    
                    
                     # Entra no Terminal 3270 - Siape Hod (tela preta)
-                    self.log.salvar_log("Enra no Terminal 3270 e digita o CPF")      
-        
                     self.app = Application().connect(title_re="^Terminal 3270.*")
                     self.dlg = self.app.window(title_re="^Terminal 3270.*")
-                    self.acesso = controle_terminal3270.Janela3270()
+                    self.acesso = controle_terminal3270.Janela3270()                   
 
-                    self.wauto.acessar_terminal_3270(">"+str(self.config["marcador"]))
-
-                    self.dlg.type_keys('{TAB}')
-                    self.dlg.type_keys(self.cpf)
-
-                    self.sleepal(1,2)
-                    kb.press("Enter")
-
+                    self.acessa_terminal_3270()                   
+                    
                     #testa condição acesso negado à tela preta
                     flag_acesso_negado = True
 
@@ -308,6 +299,7 @@ class MyApp:
                         try:
                             cpf_mensagem = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 24, 9, 24, 44).strip()
                             texto_dif_cpf = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 24, 2, 24, 16).strip()
+                            texto_cpf_invalido = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 24, 9, 24, 21).strip()
                             flag_acesso_negado = False
                             sleep(2)               
                         except Exception as e :
@@ -319,7 +311,12 @@ class MyApp:
                     com decipex; se cpf tem vinculo com decipex
                     '''
                     #################################################################################################
-                    if texto_dif_cpf == "INFORME APENAS":
+                    if texto_cpf_invalido == "CPF INVALIDO":
+                        self.log.salvar_log("CPF inválido")
+                        marcador = self.lista_marcadores_substitutos[3]
+                        self.cpf_invalido(marcador)
+                        
+                    elif texto_dif_cpf == "INFORME APENAS":
                         self.log.salvar_log("CPF inválido")
                         marcador = self.lista_marcadores_substitutos[3]
                         self.cpf_invalido(marcador)
@@ -371,19 +368,21 @@ class MyApp:
                 
                 self.texto_eventos = "Tempo: "+ str(minutos) + "m " + str(segundos) + "s."
                 
-                texto = "Nº " + str(self.numero_processo) + " CPF: " + str(self.cpf) + ", Tempo " + str(minutos) + "m " + str(segundos) + "s."
-                               
-                self.log.salvar_log( texto )
+                self.log.salvar_log( "Tempo " + str(minutos) + "m " + str(segundos) + "s." )
             
 
             self.sair_siape()
             self.sair_sei()
             self.texto_eventos = "Terminado."
             pdf.impressora_padrao(self.impressora_corrente)
+            
+        else :
+            self.log.salvar_log("Marcador "+self.config["marcador"]+": False")
 
     def com_vinculo_decipex(self):
+        
         vinculos_decipex = self.vinculos_decipex.copy()
-
+        
         # o codigo abaixo gera uma tupla de vinculos decipex
         tupla_decipex = []
 
@@ -395,7 +394,7 @@ class MyApp:
             #Recebe uma tupla de lista com pagina, linha, orgão e tipo(True=Pensionista ou False=Servidor) de todos os vinculos que o serv/pens possui
             tupla_integral = [(pagina, linha, orgao, tipo) for pagina, linha, orgao, tipo in self.pagina_linha_orgao if pagina == i]
 
-            '''tupla_integral = [(0,0,40801,False),(0,1,40806,True),(0,2,40801,False)]'''
+            '''exemplo: tupla_integral = [(0,0,40801,False),(0,1,40806,True),(0,2,40801,False)]'''
             
             #Recebe a ultima lista da tupla_integral
             ultima_lista_da_tupla = tupla_integral[-1]
@@ -436,10 +435,7 @@ class MyApp:
             tipo    = lista_decipex[3]          
             
             lista_codigo_obito = self.verifica_exclusao_obito(pagina, linha, tipo)
-            #qtF12 foi desativado e o comando F12 é acionado no metodo "verifica_exclusao_obito()"
-            #qtF12 = lista_decipex[0]#qtF12 serve para dar F12 quantas vezes paginas houverem, se for zero qtF12 rece 1
-            #if qtF12 == 0 : qtF12 = 1
-
+            
             marcador = None
             
             lista_ativo = list( self.config["lista_ativo"] )
@@ -450,21 +446,17 @@ class MyApp:
 
 
             if self.consulta_cod_lista(lista_codigo_obito[0], lista_ativo, tipo):
-                ativo = True
-                #self.dlg.type_keys("{F12 " + str(qtF12) + "}")
+                ativo = True                
 
             elif self.consulta_cod_lista(lista_codigo_obito[0], lista_excluido_batimento, tipo):
-                batimento = True
-                #self.dlg.type_keys("{F12 " + str(qtF12) + "}")
+                batimento = True                
 
             elif self.consulta_cod_lista(lista_codigo_obito[0], lista_excluido_falecimento, tipo):
                 if not tem_certidao : 
                     tem_certidao = lista_codigo_obito[1]#1 é excluído batimento
                     if tem_certidao == 0:
-                        #marcador = "VERIFICAÇÃO MANUAL"
                         marcador = self.lista_marcadores_substitutos[3]
-                #self.dlg.type_keys("{F12 " + str(qtF12) + "}")
-
+                
             else:
                 marcador = self.lista_marcadores_substitutos[3]#3 é verinficação manual
 
@@ -511,22 +503,16 @@ class MyApp:
 
 
     def verifica_exclusao_obito(self, pag, lnh, tp) :              
-        if self.config["funcionando_teste"] : msg("verifica exclusão e obito")
-        
         lista_retorno = []    
 
-        if self.config["funcionando_teste"] : msg("f8 para avançar nas páginas de vinculos, qt pagina: "+ str(pag))
         self.dlg.type_keys("{F8 " + str(pag) + "}")  # pagina
         sleep(0.5)
         
-        if self.config["funcionando_teste"] : msg("TAB nas linhas, qt TAB: "+ str(lnh) )
         self.dlg.type_keys("{TAB " + str(lnh) + "}")  # linha
         
-        if self.config["funcionando_teste"] : msg("digita x" )
         self.dlg.type_keys('x')
         sleep(0.5)
         
-        if self.config["funcionando_teste"] : msg("digita enter" )
         kb.press("Enter")
 
         sleep(1.5)
@@ -558,11 +544,10 @@ class MyApp:
                         L = indice + 8
                         certidao_obito = self.acesso.pega_texto_siape(self.acesso.copia_tela(), L, 16, L, 80).strip()
                         if certidao_obito == "" :
-                            if self.config["funcionando_teste"] : msg("certidao de óbito: " + str(certidao_obito))
+                            print()
                         else:
                             obito = True
-                            if self.config["funcionando_teste"] : msg("certidao de óbito: " + str(certidao_obito))
-
+                            
 
                     if "EXCLUSAO" in elemento :
                         achou_exclusao = True
@@ -576,11 +561,9 @@ class MyApp:
 
 
             if self.ultima_pagina_vinculo():
-                if self.config["funcionando_teste"] : msg("ultima pagina com F12")
                 self.dlg.type_keys("{F12}")
                 flag = False
             else :
-                if self.config["funcionando_teste"] : msg("não é ultima página, então avança")
                 self.avanca()
                 lista_linha_pagina_servidor.clear()
             
@@ -629,8 +612,7 @@ class MyApp:
             #O segundo elemento da ultima lista indica quantas linhas a página comtém
             qt_linha = int(ultima_lista_da_tupla[1])
             self.conta_impressao = 0
-            for j in range(qt_linha + 1):           
-                
+            for j in range(qt_linha + 1):                  
 
                 self.dlg.type_keys("{TAB " + str(j) + "}")
                 self.dlg.type_keys('x')
@@ -695,7 +677,6 @@ class MyApp:
         #---------------------------------------------------------------------------------------------------------#
         linha_comando = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 22, 56, 22, 77).strip()
         if linha_comando == "ULTIMA TELA DO VINCULO" :
-            if self.config["funcionando_teste"] : msg("encontrou ULTIMA TELA DO VINCULO")
             ultima_pagina = True
             
         avanca = False
@@ -705,10 +686,8 @@ class MyApp:
             if ( str(p) == str("PF8=AVANCA") ) or ( str(p) == str("PROXIMO") ) :
                 avanca = True
         if not avanca :
-            if self.config["funcionando_teste"] : msg("não encontrou PF8=AVANCA ou PROXIMO")                
             ultima_pagina = True
             
-        if self.config["funcionando_teste"] : msg("ultima_pagina? "+str(ultima_pagina))
         return ultima_pagina
     
       
@@ -840,7 +819,8 @@ class MyApp:
         self.exclui_marcador(str(self.config["marcador"]))
         info_add = "CPF informado no marcador CDCONVINC ("+self.cpf+") é inválido. Nenhum documento foi adicionado ao processo."
         self.add_marcador(marcador, info_add)        
-        #self.add_documento()
+        # clica botão processos e continua para fazer o próximo processo
+        self.browser.find_element(By.XPATH, '//*[@id="lnkControleProcessos"]/img').click()   
         
     def sem_vinculo_algum(self, marcador):
         pdf.coletar_tela(self)
@@ -913,6 +893,7 @@ class MyApp:
 
 
     def add_marcador(self, marcador, info_add):
+        self.log.salvar_log("Marcador adicionado: "+marcador)
         self.texto_eventos = marcador
         
         self.sleepal(1,2)
@@ -944,16 +925,12 @@ class MyApp:
         for elemento_label_assinado in elementos_labels_assinado:
             self.browser.execute_script("arguments[0].scrollIntoView(true);", elemento_label_assinado)
             elemento_label_assinado.click()
-            break  # Pare após clicar no primeiro elemento "ASSINADO" encontrado
+            break  # Para após clicar no primeiro elemento "ASSINADO" encontrado
 
         self.sleepal(1,2)
         self.browser.find_element(By.XPATH, '//*[@id="sbmSalvar"]').click()  # botão salvar
         self.sleepal(2,4)
-        #self.browser.find_element(By.XPATH, '//*[@id="btnVoltar"]').click()  # botão voltar
-        #self.sleepal(2,4)
-        # sem_vinculo = ""
-        # indice_da_linha += 1
-
+       
 
     def exclui_marcador(self, marcador):
         #msg("metodo exclui_marcador: ")
@@ -1006,10 +983,7 @@ class MyApp:
             return False
 
     def add_documento(self):
-        #msg("metodo add_documento: ")
-        ############################################################################################################
-        # Preenchendo form para anexar pdf
-        ############################################################################################################
+        
         self.browser.find_element(By.XPATH, '//*[@id="txtPesquisaRapida"]').send_keys(
             self.numero_processo)  # Campo pesquisar
         self.browser.find_element(By.XPATH,
@@ -1050,9 +1024,11 @@ class MyApp:
         self.wauto.default_clica_elemento_by_xpath('ifrVisualizacao', '//*[@id="divOptRestrito"]')  # Marca Nivel Restrito
         sleep(1)
         
+       
         # msg("Digita texto para filtrar a Hipótese legal no Combolist Hipótese legal")
         self.wauto.inserir_texto_enter_by_id_in_iframe('ifrVisualizacao', 'selHipoteseLegal','Informação Pessoal (Art. 31 da Lei')  # Digita texto para filtrar a Hipótese legal no Combolist "Hipótese legal"
-        sleep(1.5)
+                
+            
         
         # msg("Clica botão Anexar Arquivo")
         self.wauto.default_clica_elemento_by_xpath('ifrVisualizacao', '//*[@id="lblArquivo"]')  # Clica botão Anexar Arquivo
@@ -1074,7 +1050,61 @@ class MyApp:
         
         # clica botão processos e continua para fazer o próximo processo
         self.browser.find_element(By.XPATH, '//*[@id="lnkControleProcessos"]/img').click()   
-
+    
+    
+    def acessa_terminal_3270(self) :
+        tela = cpf_mensagem = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 1, 1, 24, 80).strip()
+                    
+        #Copia a tela e verifica se há mansagens cadastradas
+        partes_tela = tela.split(" ")
+                    
+        txt1 = False
+        txt2 = False
+                    
+        for pt in partes_tela :
+            if pt == "MENSAGEM(NS)" :
+                txt1 = True
+            if pt == "CADASTRADA(S):" :
+                txt2 = True
+                            
+        if txt1 and txt2 :
+            self.dlg.type_keys('{F3}')
+            self.dlg.type_keys('{F2}')                   
+            time.sleep(2)                    
+            self.dlg.type_keys(">"+str(self.config["marcador"]))
+            time.sleep(2)
+            kb.press("Enter")                    
+            time.sleep(2)
+        else :
+            txt = cpf_mensagem = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 6, 6, 6, 61).strip()
+            if txt == "POSICIONE O CURSOR NA OPCAO DESEJADA E PRESSIONE <ENTER>" :
+                flag_ultima_pagina = False
+                while not flag_ultima_pagina :
+                    self.dlg.type_keys('{F8}')    
+                    txt = cpf_mensagem = self.acesso.pega_texto_siape(self.acesso.copia_tela(), 23, 8, 23, 20).strip()
+                    if txt == "ULTIMA PAGINA" :
+                        time.sleep(2)                    
+                        self.dlg.type_keys(">"+str(self.config["marcador"]))
+                        flag_ultima_pagina = True
+                    
+                        time.sleep(2)
+                        kb.press("Enter")                    
+                        time.sleep(2)
+            else:
+                self.dlg.type_keys('{F3}')
+                self.dlg.type_keys('{F2}')                   
+                time.sleep(2)                    
+                self.dlg.type_keys(">"+str(self.config["marcador"]))
+                time.sleep(2)
+                kb.press("Enter")                    
+                time.sleep(2)
+                    
+        self.dlg.type_keys('{TAB}')
+        self.dlg.type_keys(self.cpf)
+                    
+        self.sleepal(1,2)
+        kb.press("Enter")
+        
     def sleepal(self,i,f) :
         sleep( random.randint(i, f) )
 
